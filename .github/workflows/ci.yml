@@ -1,0 +1,26 @@
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04 
+    container:
+      image: osrf/ros:humble-desktop
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Build
+        run: |
+          . /opt/ros/humble/setup.sh
+          mkdir -p ros_ws/src
+          cp -r src/* ros_ws/src/
+          cd ros_ws
+          colcon build --event-handlers console_direct+
+
+      - name: Test
+        run: |
+          . /opt/ros/humble/setup.sh
+          cd ros_ws
+          colcon test
+          colcon test-result --verbose
