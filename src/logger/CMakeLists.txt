@@ -8,6 +8,7 @@ endif()
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(rcl_interfaces REQUIRED)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
@@ -19,11 +20,27 @@ if(BUILD_TESTING)
   # a copyright and license is added to all source files
   set(ament_cmake_cpplint_FOUND TRUE)
   ament_lint_auto_find_test_dependencies()
+
+  find_package(ament_cmake_gtest REQUIRED)
+  ament_add_gtest(test_logger test/test_logger.cpp)
+
+  target_include_directories(test_logger PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/test
+  )
+
+  ament_target_dependencies(test_logger rclcpp rcl_interfaces)
+
+
 endif()
 
 
 # Add executable
 add_executable(logger_node src/logger_node.cpp)
+
+target_include_directories(logger_node PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
 
 # Link against ROS2 libraries
 ament_target_dependencies(logger_node rclcpp)
@@ -33,5 +50,4 @@ install(TARGETS
   logger_node
   DESTINATION lib/${PROJECT_NAME})
 
-  
 ament_package()
