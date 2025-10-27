@@ -1,7 +1,7 @@
 #include <memory>
 #include <vector>
 #include <string>
-#include "logger/logger_node.hpp"
+#include "logger/LoggerNode.hpp"
 #include "log_capture_node.hpp"
 
 #include <gtest/gtest.h>

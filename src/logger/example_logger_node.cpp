@@ -1,4 +1,4 @@
-#include "logger/logger_node.hpp"
+#include "logger/LoggerNode.hpp"
 
 int main(int argc, char * argv[])
 {
