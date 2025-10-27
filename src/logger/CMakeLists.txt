@@ -52,7 +52,7 @@ if(BUILD_TESTING)
   find_package(ament_cmake_gtest REQUIRED)
 
   # Main test suite
-  ament_add_gtest(test_logger 
+  ament_add_gtest(test_logger
     test/test_logger.cpp
     test/test_fast_data_logger_perf.cpp
     test/test_fast_data_logger_unit.cpp
