@@ -1,7 +1,8 @@
 #!/bin/bash
 
-# ROS2 Code Formatting Script using uncrustify
+# ROS2 Code Formatting Script using ament_uncrustify
 # This script formats C++ code according to ROS2 style guidelines
+# Uses the same formatter as CI/colcon test for consistency
 
 set -e
 
@@ -24,20 +25,33 @@ print_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
-# Check if uncrustify is installed
-if ! command -v uncrustify &> /dev/null; then
-    print_error "uncrustify is not installed. Please install it first:"
+# Check if ament_uncrustify is available
+if ! command -v ament_uncrustify &> /dev/null; then
+    print_warning "ament_uncrustify is not available in this environment."
+    print_info "To use ament_uncrustify (recommended for CI compatibility):"
+    echo "  1. Source ROS2 setup: source /opt/ros/humble/setup.bash"
+    echo "  2. Or run in a ROS2 container/environment"
+    echo ""
+    print_info "Alternative: Install and use regular uncrustify:"
     echo "  Ubuntu/Debian: sudo apt-get install uncrustify"
     echo "  macOS: brew install uncrustify"
-    exit 1
+    echo ""
+    
+    # Check if regular uncrustify is available as fallback
+    if command -v uncrustify &> /dev/null; then
+        print_warning "Falling back to regular uncrustify (may not match CI exactly)"
+        USE_AMENT_UNCRUSTIFY=false
+    else
+        print_error "Neither ament_uncrustify nor uncrustify is available."
+        exit 1
+    fi
+else
+    USE_AMENT_UNCRUSTIFY=true
 fi
 
 # Get the directory where this script is located
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$SCRIPT_DIR"
-
-# Default ROS2 uncrustify configuration
-UNCRUSTIFY_CONFIG="$PROJECT_ROOT/.uncrustify.cfg"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
 # Function to format a single file
 format_file() {
@@ -48,7 +62,36 @@ format_file() {
     cp "$file" "$backup_file"
     
     # Format the file
-    if uncrustify -c "$UNCRUSTIFY_CONFIG" --replace --no-backup "$file" 2>/dev/null; then
+    local format_success=false
+    if [[ "$USE_AMENT_UNCRUSTIFY" == "true" ]]; then
+        if ament_uncrustify --reformat "$file" 2>/dev/null; then
+            format_success=true
+        fi
+    else
+        # Fallback to regular uncrustify with basic ROS2 style
+        if uncrustify --replace --no-backup -l CPP \
+            --set indent_columns=2 \
+            --set indent_with_tabs=0 \
+            --set sp_inside_paren=remove \
+            --set sp_arith=add \
+            --set sp_assign=add \
+            --set sp_bool=add \
+            --set sp_compare=add \
+            --set sp_after_comma=add \
+            --set sp_before_comma=remove \
+            --set nl_if_brace=add \
+            --set nl_for_brace=add \
+            --set nl_while_brace=add \
+            --set nl_else_brace=add \
+            --set mod_full_brace_if=add \
+            --set mod_full_brace_for=add \
+            --set mod_full_brace_while=add \
+            "$file" 2>/dev/null; then
+            format_success=true
+        fi
+    fi
+    
+    if [[ "$format_success" == "true" ]]; then
         if cmp -s "$file" "$backup_file"; then
             # No changes made
             rm "$backup_file"
@@ -71,25 +114,27 @@ format_directory() {
     local dir="$1"
     local count=0
     
-    print_info "Formatting C++ files in $dir..."
+    print_info "Formatting C++ files in $dir using ament_uncrustify..."
 
-    # Find all C++ files and store in array
-    local files=()
-    while IFS= read -r -d '' file; do
-        files+=("$file")
-    done < <(find "$dir" -type f \( -name "*.cpp" -o -name "*.hpp" -o -name "*.cc" -o -name "*.hh" -o -name "*.c" -o -name "*.h" \) -print0)
-
-    # Format each file
-    for file in "${files[@]}"; do
-        if [[ -f "$file" ]]; then
-            format_file "$file"
-            ((count++))
-        else
-            print_warning "Skipping non-regular file: $file"
-        fi
-    done
-
-    print_info "Formatted $count files in $dir"
+    # Use ament_uncrustify to format the entire directory
+    if ament_uncrustify --reformat "$dir" 2>/dev/null; then
+        # Count the files that would be processed
+        local files=()
+        while IFS= read -r -d '' file; do
+            files+=("$file")
+        done < <(find "$dir" -type f \( -name "*.cpp" -o -name "*.hpp" -o -name "*.cc" -o -name "*.hh" -o -name "*.c" -o -name "*.h" \) -print0)
+        
+        count=${#files[@]}
+        
+        for file in "${files[@]}"; do
+            echo "  ✓ $file (processed)"
+        done
+        
+        print_info "Formatted $count files in $dir"
+    else
+        print_error "Failed to format directory $dir"
+        return 1
+    fi
 }
 
 # Main script logic
@@ -131,4 +176,4 @@ else
 fi
 
 print_info "Code formatting complete!"
-print_info "Uncrustify configuration: $UNCRUSTIFY_CONFIG"
+print_info "Using ament_uncrustify (same as CI/colcon test)"
