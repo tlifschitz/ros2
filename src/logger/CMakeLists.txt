@@ -18,8 +18,8 @@ find_package(rcl_interfaces REQUIRED)
 
 # Add executables
 add_executable(logger_node_example example_logger_node.cpp)
-add_executable(fast_logger_node_example 
-  example_fast_logger.cpp 
+add_executable(fast_logger_node_example
+  example_fast_logger.cpp
   src/FastDataLogger.cpp
 )
 
@@ -42,15 +42,15 @@ target_link_libraries(fast_logger_node_example pthread)
 # Testing
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
-  
+
   # Skip linters that require copyrights/licenses
   set(ament_cmake_copyright_FOUND TRUE)
   set(ament_cmake_cpplint_FOUND TRUE)
-  
+
   ament_lint_auto_find_test_dependencies()
 
   find_package(ament_cmake_gtest REQUIRED)
-  
+
   # Main test suite
   ament_add_gtest(test_logger 
     test/test_logger.cpp

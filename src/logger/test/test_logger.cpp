@@ -29,6 +29,7 @@ class LoggerTest : public SingleThreadedExecutorTest {};
 
 TEST_F(LoggerTest, NodeCreatesSuccessfully) {
   auto node = std::make_shared<LoggerNode>();
+
   EXPECT_NE(node, nullptr);
   EXPECT_EQ(node->get_name(), std::string("logger_node"));
 }
@@ -39,6 +40,7 @@ TEST_F(LoggerTest, NodeSpinsWithoutErrors) {
   executor_->add_node(logger_node);
 
   auto start_time = std::chrono::steady_clock::now();
+
   while (std::chrono::steady_clock::now() - start_time < std::chrono::milliseconds(200)) {
     executor_->spin_some(std::chrono::milliseconds(50));
   }
@@ -57,6 +59,7 @@ TEST_F(LoggerTest, EmitsCorrectLogMessage) {
 
   // Spin for enough time to capture at least one log message
   auto start_time = std::chrono::steady_clock::now();
+
   while (std::chrono::steady_clock::now() - start_time < std::chrono::seconds(1)) {
     executor_->spin_some(std::chrono::milliseconds(50));
   }
