@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # ROS2 Code Formatting Script using ament_uncrustify
-# This script formats C++ code according to ROS2 style guidelines
+# This script formats C++ and CMake files according to ROS2 style guidelines
 # Uses the same formatter as CI/colcon test for consistency
 
 set -e
@@ -53,6 +53,30 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
+# Function to format CMake files (remove trailing whitespace)
+format_cmake_file() {
+    local file="$1"
+    local backup_file="$2"
+    
+    # Remove trailing whitespace from CMake files
+    if sed 's/[[:space:]]*$//' "$file" > "${file}.tmp" && mv "${file}.tmp" "$file"; then
+        if cmp -s "$file" "$backup_file"; then
+            # No changes made
+            rm "$backup_file"
+            echo "  ✓ $file (no changes)"
+        else
+            # Changes were made
+            rm "$backup_file"
+            echo "  ✓ $file (cleaned trailing whitespace)"
+        fi
+    else
+        # Restore backup on error
+        mv "$backup_file" "$file"
+        print_error "Failed to format CMake file $file"
+        return 1
+    fi
+}
+
 # Function to format a single file
 format_file() {
     local file="$1"
@@ -61,7 +85,13 @@ format_file() {
     # Create backup
     cp "$file" "$backup_file"
     
-    # Format the file
+    # Check if it's a CMake file
+    if [[ "$file" == *"CMakeLists.txt" ]] || [[ "$file" == *".cmake" ]]; then
+        format_cmake_file "$file" "$backup_file"
+        return $?
+    fi
+    
+    # Format C++ files
     local format_success=false
     if [[ "$USE_AMENT_UNCRUSTIFY" == "true" ]]; then
         if ament_uncrustify --reformat "$file" 2>/dev/null; then
@@ -114,27 +144,25 @@ format_directory() {
     local dir="$1"
     local count=0
     
-    print_info "Formatting C++ files in $dir using ament_uncrustify..."
+    print_info "Formatting C++ and CMake files in $dir..."
 
-    # Use ament_uncrustify to format the entire directory
-    if ament_uncrustify --reformat "$dir" 2>/dev/null; then
-        # Count the files that would be processed
-        local files=()
-        while IFS= read -r -d '' file; do
-            files+=("$file")
-        done < <(find "$dir" -type f \( -name "*.cpp" -o -name "*.hpp" -o -name "*.cc" -o -name "*.hh" -o -name "*.c" -o -name "*.h" \) -print0)
-        
-        count=${#files[@]}
-        
-        for file in "${files[@]}"; do
-            echo "  ✓ $file (processed)"
-        done
-        
-        print_info "Formatted $count files in $dir"
-    else
-        print_error "Failed to format directory $dir"
-        return 1
-    fi
+    # Find all files to format (C++ and CMake)
+    local files=()
+    while IFS= read -r -d '' file; do
+        files+=("$file")
+    done < <(find "$dir" -type f \( -name "*.cpp" -o -name "*.hpp" -o -name "*.cc" -o -name "*.hh" -o -name "*.c" -o -name "*.h" -o -name "CMakeLists.txt" -o -name "*.cmake" \) -print0)
+
+    # Format each file individually
+    for file in "${files[@]}"; do
+        if [[ -f "$file" ]]; then
+            format_file "$file"
+            ((count++))
+        else
+            print_warning "Skipping non-regular file: $file"
+        fi
+    done
+
+    print_info "Processed $count files in $dir"
 }
 
 # Main script logic
